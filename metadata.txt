@@ -1,0 +1,16 @@
+[general]
+name=Raster Slider
+qgisMinimumVersion=3.22
+description=pyarchinit a tool for archaeological works
+
+version=1.0
+
+author=Enzo Cocca
+email=enzo.ccc@gmail.com
+
+about=https://github.com/enzococca/raster_slider
+
+
+tracker=https://github.com/enzococca/raster_slider/issues
+repository=https://github.com/enzococca/raster_slider
+icon=icon/icon.png
