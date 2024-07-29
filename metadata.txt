@@ -1,14 +1,20 @@
 [general]
-name=Raster Slider
+name=RasterSliderPlugin
 qgisMinimumVersion=3.22
-description=pyarchinit a tool for archaeological works
-
-version=1.0
+description =The Raster Slider Plugin enhances raster layer management in QGIS by providing an intuitive slider interface to control layer visibility. It allows users to select multiple groups of raster layers and easily adjust which layers are visible using a simple slider. The plugin displays the name of the topmost visible raster for each selected group, facilitating efficient visualization and comparison of different raster layers within complex projects. Ideal for GIS professionals working with multiple raster datasets, this plugin streamlines workflow and improves project organization.
+version = 1.0
 
 author=Enzo Cocca
 email=enzo.ccc@gmail.com
 
-about=https://github.com/enzococca/raster_slider
+about=The Raster Slider Plugin offers a user-friendly solution for managing multiple raster layers in QGIS projects. Key features include:
+    - Multi-group selection for raster layers
+    - Slider-based visibility control
+    - Real-time display of active raster names
+    - Dockable widget for easy access
+    - Compatibility with QGIS 3.0 and later versions
+    This tool is perfect for projects involving temporal data, multi-band imagery, or any scenario where quick toggling between raster layers is beneficial. It significantly enhances the user experience when working with complex raster datasets in QGIS.
+
 
 
 tracker=https://github.com/enzococca/raster_slider/issues
