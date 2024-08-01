@@ -53,7 +53,15 @@ class RasterSliderDock(QDockWidget):
         # Aggiungiamo il bottone di esportazione
         self.export_button = QPushButton("Export Images")
         self.main_layout.addWidget(self.export_button)
+        # Aggiungi checkbox per l'atlante
+        self.use_atlas_checkbox = QCheckBox("Use Atlas")
+        self.main_layout.addWidget(self.use_atlas_checkbox)
 
+        # Aggiungi combobox per il layer di copertura dell'atlante
+        self.coverage_layer_combo = QComboBox()
+        self.coverage_layer_combo.setEnabled(False)
+        self.main_layout.addWidget(QLabel("Atlas Coverage Layer:"))
+        self.main_layout.addWidget(self.coverage_layer_combo)
         # Aggiungiamo la barra di progresso
         self.progress_bar = QProgressBar()
         self.main_layout.addWidget(self.progress_bar)
@@ -70,6 +78,17 @@ class RasterSliderDock(QDockWidget):
         self.group_list.itemSelectionChanged.connect(self.update_slider)
         self.slider.valueChanged.connect(self.update_raster_visibility)
         self.export_button.clicked.connect(self.export_images)
+
+        self.use_atlas_checkbox.stateChanged.connect(self.toggle_coverage_layer_combo)
+
+    def toggle_coverage_layer_combo(self, state):
+        self.coverage_layer_combo.setEnabled(state == Qt.Checked)
+
+    def populate_vector_layers(self):
+        self.coverage_layer_combo.clear()
+        for layer in self.project.mapLayers().values():
+            if isinstance(layer, QgsVectorLayer):
+                self.coverage_layer_combo.addItem(layer.name(), layer.id())
 
     def populate_layouts(self):
         self.layout_combo.clear()
