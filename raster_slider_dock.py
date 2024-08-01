@@ -1,9 +1,15 @@
-from qgis.PyQt.QtWidgets import QDockWidget, QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QSlider, QLabel, \
-    QPushButton, QFileDialog, QMessageBox, QComboBox
-from qgis.PyQt.QtCore import Qt
+from qgis.PyQt.QtWidgets import (QDockWidget, QWidget, QVBoxLayout, QHBoxLayout,
+                                 QListWidget, QSlider, QLabel, QPushButton,
+                                 QFileDialog, QMessageBox, QComboBox, QProgressBar,
+                                 QListWidgetItem, QApplication)
+from qgis.PyQt.QtCore import Qt, QSize
+from qgis.PyQt.QtGui import QPixmap, QIcon
 
-from qgis.core import QgsProject, QgsLayerTreeGroup,QgsLayerTreeLayer, QgsRasterLayer, QgsPrintLayout, QgsLayoutExporter, QgsLayoutItemMap
+from qgis.core import (QgsProject, QgsLayerTreeGroup, QgsLayerTreeLayer, QgsRasterLayer,
+                       QgsPrintLayout, QgsLayoutExporter, QgsLayoutItemMap)
 from qgis.gui import QgsFileWidget
+
+import os
 
 
 class RasterSliderDock(QDockWidget):
@@ -16,6 +22,7 @@ class RasterSliderDock(QDockWidget):
         self.connect_signals()
         self.populate_groups()
         self.populate_layouts()
+
 
     def setup_ui(self):
         self.main_widget = QWidget()
@@ -46,6 +53,15 @@ class RasterSliderDock(QDockWidget):
         # Aggiungiamo il bottone di esportazione
         self.export_button = QPushButton("Export Images")
         self.main_layout.addWidget(self.export_button)
+
+        # Aggiungiamo la barra di progresso
+        self.progress_bar = QProgressBar()
+        self.main_layout.addWidget(self.progress_bar)
+
+        # Aggiungiamo la lista widget per le anteprime
+        self.preview_list = QListWidget()
+        self.preview_list.setIconSize(QSize(100, 100))  # Imposta la dimensione delle icone
+        self.main_layout.addWidget(self.preview_list)
 
         self.setWidget(self.main_widget)
 
@@ -83,6 +99,7 @@ class RasterSliderDock(QDockWidget):
         selected_groups = [item.text() for item in self.group_list.selectedItems()]
         active_rasters = []
         root = QgsProject.instance().layerTreeRoot()
+
         for group_name in selected_groups:
             group = root.findGroup(group_name)
             if group:
@@ -121,6 +138,21 @@ class RasterSliderDock(QDockWidget):
 
         selected_groups = [item.text() for item in self.group_list.selectedItems()]
 
+        # Calcola il numero totale di esportazioni
+        total_exports = 0
+        for group_name in selected_groups:
+            group = self.project.layerTreeRoot().findGroup(group_name)
+            if group:
+                raster_layers = [child for child in group.children() if
+                                 isinstance(child, QgsLayerTreeLayer) and isinstance(child.layer(), QgsRasterLayer)]
+                total_exports += len(raster_layers)
+
+        self.progress_bar.setMaximum(total_exports)
+        self.progress_bar.setValue(0)
+
+        self.preview_list.clear()  # Pulisce la lista delle anteprime
+
+        export_count = 0
         for group_name in selected_groups:
             group = self.project.layerTreeRoot().findGroup(group_name)
             if group:
@@ -149,4 +181,25 @@ class RasterSliderDock(QDockWidget):
                     else:  # JPG
                         exporter.exportToImage(filename, QgsLayoutExporter.ImageExportSettings())
 
+                    # Aggiorna la barra di progresso
+                    export_count += 1
+                    self.progress_bar.setValue(export_count)
+
+                    # Aggiunge l'anteprima alla lista
+                    self.add_preview_to_list(filename, f"{group_name}: {layer_node.layer().name()}")
+
+                    # Aggiorna l'interfaccia utente
+                    QApplication.processEvents()
+
         QMessageBox.information(self, "Export Complete", "Images have been exported successfully.")
+
+    def add_preview_to_list(self, image_path, label_text):
+        item = QListWidgetItem(label_text)
+
+        # Crea un'anteprima dell'immagine
+        pixmap = QPixmap(image_path)
+        if not pixmap.isNull():
+            pixmap = pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            item.setIcon(QIcon(pixmap))
+
+        self.preview_list.addItem(item)
