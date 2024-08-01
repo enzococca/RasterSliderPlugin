@@ -1,12 +1,12 @@
 from qgis.PyQt.QtWidgets import (QDockWidget, QWidget, QVBoxLayout, QHBoxLayout,
                                  QListWidget, QSlider, QLabel, QPushButton,
                                  QFileDialog, QMessageBox, QComboBox, QProgressBar,
-                                 QListWidgetItem, QApplication)
+                                 QListWidgetItem, QCheckBox, QApplication)
 from qgis.PyQt.QtCore import Qt, QSize
 from qgis.PyQt.QtGui import QPixmap, QIcon
-
 from qgis.core import (QgsProject, QgsLayerTreeGroup, QgsLayerTreeLayer, QgsRasterLayer,
-                       QgsPrintLayout, QgsLayoutExporter, QgsLayoutItemMap)
+                       QgsPrintLayout, QgsLayoutExporter, QgsLayoutItemMap,
+                       QgsVectorLayer)
 from qgis.gui import QgsFileWidget
 
 import os
@@ -22,7 +22,7 @@ class RasterSliderDock(QDockWidget):
         self.connect_signals()
         self.populate_groups()
         self.populate_layouts()
-
+        self.populate_vector_layers()
 
     def setup_ui(self):
         self.main_widget = QWidget()
@@ -125,6 +125,29 @@ class RasterSliderDock(QDockWidget):
             QMessageBox.warning(self, "Error", "Selected layout not found.")
             return
 
+        use_atlas = self.use_atlas_checkbox.isChecked()
+        coverage_layer_id = self.coverage_layer_combo.currentData() if use_atlas else None
+
+        if use_atlas:
+            coverage_layer = self.project.mapLayer(coverage_layer_id)
+            if not coverage_layer:
+                QMessageBox.warning(self, "Error", "Selected coverage layer not found.")
+                return
+
+            layout.atlas().setCoverageLayer(coverage_layer)
+            layout.atlas().setEnabled(True)
+        else:
+            layout.atlas().setEnabled(False)
+        selected_layout_name = self.layout_combo.currentText()
+        if not selected_layout_name:
+            QMessageBox.warning(self, "Error", "Please select a layout.")
+            return
+
+        layout = self.project.layoutManager().layoutByName(selected_layout_name)
+        if not layout:
+            QMessageBox.warning(self, "Error", "Selected layout not found.")
+            return
+
         export_format = self.format_combo.currentText()
         file_filter = {
             "GeoTIFF": "GeoTIFF (*.tif)",
@@ -147,10 +170,13 @@ class RasterSliderDock(QDockWidget):
                                  isinstance(child, QgsLayerTreeLayer) and isinstance(child.layer(), QgsRasterLayer)]
                 total_exports += len(raster_layers)
 
+        if use_atlas:
+            total_exports *= coverage_layer.featureCount()
+
         self.progress_bar.setMaximum(total_exports)
         self.progress_bar.setValue(0)
 
-        self.preview_list.clear()  # Pulisce la lista delle anteprime
+        self.preview_list.clear()
 
         export_count = 0
         for group_name in selected_groups:
@@ -170,29 +196,38 @@ class RasterSliderDock(QDockWidget):
                         if isinstance(item, QgsLayoutItemMap):
                             item.zoomToExtent(self.iface.mapCanvas().extent())
 
-                    # Esporta l'immagine
-                    exporter = QgsLayoutExporter(layout)
-                    filename = f"{output_dir}/{group_name}_{layer_node.layer().name()}.{export_format.lower()}"
-
-                    if export_format == "GeoTIFF":
-                        exporter.exportToImage(filename, QgsLayoutExporter.ImageExportSettings())
-                    elif export_format == "GeoPDF":
-                        exporter.exportToPdf(filename, QgsLayoutExporter.PdfExportSettings())
-                    else:  # JPG
-                        exporter.exportToImage(filename, QgsLayoutExporter.ImageExportSettings())
-
-                    # Aggiorna la barra di progresso
-                    export_count += 1
-                    self.progress_bar.setValue(export_count)
-
-                    # Aggiunge l'anteprima alla lista
-                    self.add_preview_to_list(filename, f"{group_name}: {layer_node.layer().name()}")
-
-                    # Aggiorna l'interfaccia utente
-                    QApplication.processEvents()
+                    if use_atlas:
+                        layout.atlas().beginRender()
+                        for feature in coverage_layer.getFeatures():
+                            layout.atlas().seekTo(feature)
+                            self.export_single_image(layout, output_dir, group_name, layer_node, export_format,
+                                                     f"_{feature.id()}")
+                            export_count += 1
+                            self.progress_bar.setValue(export_count)
+                            QApplication.processEvents()
+                        layout.atlas().endRender()
+                    else:
+                        self.export_single_image(layout, output_dir, group_name, layer_node, export_format)
+                        export_count += 1
+                        self.progress_bar.setValue(export_count)
+                        QApplication.processEvents()
 
         QMessageBox.information(self, "Export Complete", "Images have been exported successfully.")
 
+    def export_single_image(self, layout, output_dir, group_name, layer_node, export_format, suffix=""):
+        exporter = QgsLayoutExporter(layout)
+        filename = f"{output_dir}/{group_name}_{layer_node.layer().name()}{suffix}.{export_format.lower()}"
+
+        if export_format == "GeoTIFF":
+            exporter.exportToImage(filename, QgsLayoutExporter.ImageExportSettings())
+        elif export_format == "GeoPDF":
+            exporter.exportToPdf(filename, QgsLayoutExporter.PdfExportSettings())
+        else:  # JPG
+            image_settings = QgsLayoutExporter.ImageExportSettings()
+            image_settings.generateWorldFile = True
+            exporter.exportToImage(filename, image_settings)
+
+        self.add_preview_to_list(filename, f"{group_name}: {layer_node.layer().name()}{suffix}")
     def add_preview_to_list(self, image_path, label_text):
         item = QListWidgetItem(label_text)
 
