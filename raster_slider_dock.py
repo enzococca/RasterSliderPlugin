@@ -5,11 +5,9 @@ from qgis.PyQt.QtWidgets import (QDockWidget, QWidget, QVBoxLayout, QHBoxLayout,
 from qgis.PyQt.QtCore import Qt, QSize
 from qgis.PyQt.QtGui import QPixmap, QIcon
 from qgis.core import (QgsProject, QgsLayerTreeGroup, QgsLayerTreeLayer, QgsRasterLayer,
-                       QgsPrintLayout, QgsLayoutExporter, QgsLayoutItemMap,
+                       QgsLayoutExporter, QgsLayoutItemMap,
                        QgsVectorLayer)
-from qgis.gui import QgsFileWidget
 
-import os
 
 
 class RasterSliderDock(QDockWidget):
@@ -146,7 +144,7 @@ class RasterSliderDock(QDockWidget):
 
         use_atlas = self.use_atlas_checkbox.isChecked()
         coverage_layer_id = self.coverage_layer_combo.currentData() if use_atlas else None
-
+        coverage_layer = None
         if use_atlas:
             coverage_layer = self.project.mapLayer(coverage_layer_id)
             if not coverage_layer:
